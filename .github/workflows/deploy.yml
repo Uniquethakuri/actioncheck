@@ -14,16 +14,33 @@ jobs:
       uses: actions/checkout@v3
 
     - name: Enable Debug Mode
-      run: set -x
+      run: set -x  # Print each command as it runs
 
     - name: Set up SSH
       env:
         SSH_KEY: ${{ secrets.CPANEL_SSH_KEY }}
       run: |
+        # Step 1: Create SSH directory
         mkdir -p ~/.ssh
-        echo "$SSH_KEY" > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa
-        ssh-keyscan -H ${{ secrets.CPANEL_HOST }} >> ~/.ssh/known_hosts
+        echo "Created .ssh directory"
 
-    - name: Debug SSH Directory
-      run: ls -l ~/.ssh
+        # Step 2: Add SSH private key
+        echo "$SSH_KEY" > ~/.ssh/id_rsa
+        echo "Added SSH private key to .ssh/id_rsa"
+        
+        # Step 3: Set permissions for SSH private key
+        chmod 600 ~/.ssh/id_rsa
+        echo "Set permissions for SSH private key"
+
+        # Step 4: Verify the contents of the SSH directory
+        ls -la ~/.ssh
+
+        # Step 5: Verify the private key file is correctly written
+        cat ~/.ssh/id_rsa || echo "Failed to display the private key contents"  # This should show key content (avoid in production)
+
+        # Step 6: Add the cPanel host to known_hosts
+        ssh-keyscan -H ${{ secrets.CPANEL_HOST }} >> ~/.ssh/known_hosts
+        echo "Added cPanel host to known_hosts"
+
+    - name: Verify known_hosts file
+      run: cat ~/.ssh/known_hosts || echo "known_hosts file is missing or empty"
