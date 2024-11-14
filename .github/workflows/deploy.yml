@@ -14,7 +14,7 @@ jobs:
       uses: actions/checkout@v3
 
     - name: Enable Debug Mode
-      run: set -x  # Print each command as it runs for easier debugging
+      run: set -x  # Enable debug mode to print each command as it runs for easier troubleshooting
 
     - name: Set up SSH
       env:
@@ -35,7 +35,7 @@ jobs:
         # Step 4: Verify the contents of the SSH directory
         ls -la ~/.ssh
 
-        # Step 5: Verify the private key file is correctly written (omit in production)
+        # Step 5: Verify the private key file is correctly written (remove this in production for security)
         cat ~/.ssh/id_rsa || echo "Failed to display the private key contents"
 
     - name: Debug CPANEL_HOST
@@ -45,6 +45,7 @@ jobs:
       run: |
         echo "Testing connectivity to ${{ secrets.CPANEL_HOST }}"
         ping -c 4 ${{ secrets.CPANEL_HOST }} || echo "Ping failed"
+      continue-on-error: true  # Allow the workflow to continue even if ping fails for debugging
 
     - name: Attempt to Add cPanel Host to known_hosts
       run: |
@@ -57,9 +58,9 @@ jobs:
         echo "Contents of known_hosts:"
         cat ~/.ssh/known_hosts || echo "known_hosts file is empty or not created"
 
-    # Optional: Proceed with Deployment if ssh-keyscan succeeds
+    # Proceed with Deployment if previous steps are successful
     - name: Deploy to cPanel Server
-      if: success()  # Run only if the previous steps were successful
+      if: success()  # Run only if previous steps have succeeded
       env:
         CPANEL_HOST: ${{ secrets.CPANEL_HOST }}
         CPANEL_USERNAME: ${{ secrets.CPANEL_USERNAME }}
