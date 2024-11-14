@@ -37,7 +37,7 @@ jobs:
         
         # Step 5: Verify the private key file is correctly written (remove this in production for security)
         cat ~/.ssh/id_rsa || echo "Failed to display the private key contents"
-      
+
     - name: Debug CPANEL_HOST
       run: echo "cPanel Host: ${{ secrets.CPANEL_HOST }}"
 
@@ -52,23 +52,23 @@ jobs:
         # Step 1: SSH into the cPanel server and navigate to the Laravel directory
         ssh -i ~/.ssh/id_rsa username@${{ secrets.CPANEL_HOST }} "cd /home/username/public_html && git pull origin main"
         echo "Pulled latest changes from GitHub repository"
-
+        
         # Step 2: Install Composer dependencies
         ssh -i ~/.ssh/id_rsa username@${{ secrets.CPANEL_HOST }} "cd /home/username/public_html && composer install --no-dev --optimize-autoloader"
         echo "Installed Composer dependencies"
-
+        
         # Step 3: Set file permissions for storage and cache
         ssh -i ~/.ssh/id_rsa username@${{ secrets.CPANEL_HOST }} "cd /home/username/public_html && chmod -R 775 storage bootstrap/cache"
         echo "Set correct file permissions for storage and cache"
-
+        
         # Step 4: Run Laravel migrations
         ssh -i ~/.ssh/id_rsa username@${{ secrets.CPANEL_HOST }} "cd /home/username/public_html && php artisan migrate --force"
         echo "Ran database migrations"
-
+        
         # Step 5: Clear and cache configurations
         ssh -i ~/.ssh/id_rsa username@${{ secrets.CPANEL_HOST }} "cd /home/username/public_html && php artisan config:cache"
         echo "Cached Laravel configurations"
-
+        
         # Step 6: Restart services (optional, depends on setup)
         # ssh -i ~/.ssh/id_rsa username@${{ secrets.CPANEL_HOST }} "cd /home/username/public_html && php artisan queue:restart"
         # echo "Restarted Laravel queues"
