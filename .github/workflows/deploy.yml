@@ -1,0 +1,32 @@
+name: Deploy Laravel to cPanel
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up SSH
+      env:
+        SSH_KEY: ${{ secrets.CPANEL_SSH_KEY }}
+      run: |
+        mkdir -p ~/.ssh
+        echo "$SSH_KEY" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -H ${{ secrets.CPANEL_HOST }} >> ~/.ssh/known_hosts
+
+    - name: Deploy to cPanel Server
+      env:
+        CPANEL_HOST: ${{ secrets.CPANEL_HOST }}
+        CPANEL_USERNAME: ${{ secrets.CPANEL_USERNAME }}
+      run: |
+        rsync -avz --exclude=".git" --exclude="node_modules" \
+          -e "ssh -i ~/.ssh/id_rsa" \
+          ./ $CPANEL_USERNAME@$CPANEL_HOST:/home/$CPANEL_USERNAME/public_html/
