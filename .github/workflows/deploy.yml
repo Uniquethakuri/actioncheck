@@ -23,7 +23,7 @@ jobs:
         # Step 1: Create SSH directory
         mkdir -p ~/.ssh
         echo "Created .ssh directory"
-
+        
         # Step 2: Add SSH private key
         echo "$SSH_KEY" > ~/.ssh/id_rsa
         echo "Added SSH private key to .ssh/id_rsa"
@@ -31,40 +31,47 @@ jobs:
         # Step 3: Set permissions for SSH private key
         chmod 600 ~/.ssh/id_rsa
         echo "Set permissions for SSH private key"
-
+        
         # Step 4: Verify the contents of the SSH directory
         ls -la ~/.ssh
-
+        
         # Step 5: Verify the private key file is correctly written (remove this in production for security)
         cat ~/.ssh/id_rsa || echo "Failed to display the private key contents"
-
+      
     - name: Debug CPANEL_HOST
       run: echo "cPanel Host: ${{ secrets.CPANEL_HOST }}"
 
-    - name: Test Connectivity to cPanel Host
+    - name: Set up known_hosts
       run: |
-        echo "Testing connectivity to ${{ secrets.CPANEL_HOST }}"
-        ping -c 4 ${{ secrets.CPANEL_HOST }} || echo "Ping failed"
-      continue-on-error: true  # Allow the workflow to continue even if ping fails for debugging
+        # Step to prevent SSH from asking whether to trust the host
+        ssh-keyscan -H ${{ secrets.CPANEL_HOST }} >> ~/.ssh/known_hosts
+        echo "Added cPanel host to known hosts"
 
-    - name: Attempt to Add cPanel Host to known_hosts
+    - name: Deploy Laravel to cPanel
       run: |
-        echo "Attempting to add ${{ secrets.CPANEL_HOST }} to known_hosts"
-        ssh-keyscan -H ${{ secrets.CPANEL_HOST }} >> ~/.ssh/known_hosts || echo "ssh-keyscan failed"
-      continue-on-error: true  # Allow the workflow to continue even if ssh-keyscan fails
+        # Step 1: SSH into the cPanel server and navigate to the Laravel directory
+        ssh -i ~/.ssh/id_rsa username@${{ secrets.CPANEL_HOST }} "cd /home/username/public_html && git pull origin main"
+        echo "Pulled latest changes from GitHub repository"
 
-    - name: Output known_hosts File
-      run: |
-        echo "Contents of known_hosts:"
-        cat ~/.ssh/known_hosts || echo "known_hosts file is empty or not created"
+        # Step 2: Install Composer dependencies
+        ssh -i ~/.ssh/id_rsa username@${{ secrets.CPANEL_HOST }} "cd /home/username/public_html && composer install --no-dev --optimize-autoloader"
+        echo "Installed Composer dependencies"
 
-    # Proceed with Deployment if previous steps are successful
-    - name: Deploy to cPanel Server
-      if: success()  # Run only if previous steps have succeeded
-      env:
-        CPANEL_HOST: ${{ secrets.CPANEL_HOST }}
-        CPANEL_USERNAME: ${{ secrets.CPANEL_USERNAME }}
-      run: |
-        rsync -avz --exclude=".git" --exclude="node_modules" \
-          -e "ssh -i ~/.ssh/id_rsa" \
-          ./ $CPANEL_USERNAME@$CPANEL_HOST:/home/$CPANEL_USERNAME/public_html/
+        # Step 3: Set file permissions for storage and cache
+        ssh -i ~/.ssh/id_rsa username@${{ secrets.CPANEL_HOST }} "cd /home/username/public_html && chmod -R 775 storage bootstrap/cache"
+        echo "Set correct file permissions for storage and cache"
+
+        # Step 4: Run Laravel migrations
+        ssh -i ~/.ssh/id_rsa username@${{ secrets.CPANEL_HOST }} "cd /home/username/public_html && php artisan migrate --force"
+        echo "Ran database migrations"
+
+        # Step 5: Clear and cache configurations
+        ssh -i ~/.ssh/id_rsa username@${{ secrets.CPANEL_HOST }} "cd /home/username/public_html && php artisan config:cache"
+        echo "Cached Laravel configurations"
+
+        # Step 6: Restart services (optional, depends on setup)
+        # ssh -i ~/.ssh/id_rsa username@${{ secrets.CPANEL_HOST }} "cd /home/username/public_html && php artisan queue:restart"
+        # echo "Restarted Laravel queues"
+
+    - name: Deployment Completed
+      run: echo "Deployment to cPanel is complete!"
